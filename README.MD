@@ -1,9 +1,9 @@
 # Character Driver example with Circular Buffer
 1. To install kernel sources in Ubuntu:
-    a. Make sure to enable source URLs in `/etc/apt/sources.list`
-    b. `apt-get update`
-    c. `apt-get source linux-image-$(uname -r)`
-    d. `apt-get build-dep linux-image-$(uname -r)`
+1.1. Make sure to enable source URLs in `/etc/apt/sources.list`
+1.1. `apt-get update`
+1.1. `apt-get source linux-image-$(uname -r)`
+1.1. `apt-get build-dep linux-image-$(uname -r)`
 
 2. To build kernel module and test program execute `make`
 3. To load kernel module, `insmod char_buf.ko`
