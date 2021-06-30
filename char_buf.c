@@ -56,21 +56,21 @@ static ssize_t device_read(struct file *fp, char *buf, size_t count, loff_t *ppo
 	else if (byte_count > 0)
 	{
 		out_count = byte_count;
-		data_available = false;
+		WRITE_ONCE(data_available, false);
 	}
 	else // should not trigger
 	{
-		data_available = false;
+		WRITE_ONCE(data_available, false);
 		goto ret;
 	}
-	new_end = CIRC_CNT_TO_END(head, tail, RXBUF_LEN);
+	new_end = CIRC_CNT_TO_END(head, tail, RXBUF_LEN) + 1;
 	remainder = out_count % new_end;
 	seq_len = out_count - remainder;
 	new_tail = (tail + out_count) & (RXBUF_LEN - 1);
 	printk(KERN_INFO "charDev : Read : End %d Rem %d Seq %d Out %d Tail %d\n", new_end, remainder, seq_len, out_count, new_tail);
 	/* Write the block making sure to wrap around the end of the buffer */
-	out_count -= copy_to_user(buf, rxbuf->buf + tail, seq_len); // copy_to_user returns bytes not written
-	out_count -= copy_to_user(buf + seq_len, rxbuf->buf, remainder);
+	out_count -= copy_to_user(buf, rxbuf->buf + tail, remainder); // copy_to_user returns bytes not written
+	out_count -= copy_to_user(buf + remainder, rxbuf->buf, seq_len);
 	new_tail = (tail + out_count) & (RXBUF_LEN - 1);
 	WRITE_ONCE(rxbuf->tail, new_tail);
 	return out_count;
@@ -87,7 +87,7 @@ static ssize_t device_write(struct file *fp, const char *buff, size_t len, loff_
 	printk(KERN_INFO "charDev : Write : Writing, head %d tail %d space %d bytes %lu", head, tail, space, len);
 	if (space >= len)
 	{
-		int remainder = len % CIRC_SPACE_TO_END(head, tail, RXBUF_LEN);
+		int remainder = len % (CIRC_SPACE_TO_END(head, tail, RXBUF_LEN) + 1);
 		int seq_len = len - remainder;
 		new_head = (head + len) & (RXBUF_LEN - 1);
 		printk("charDev : Write : Rem %d Seq %d new head: %d\n", remainder, seq_len, new_head);
@@ -95,7 +95,7 @@ static ssize_t device_write(struct file *fp, const char *buff, size_t len, loff_
 		copy_from_user(rxbuf->buf + head, buff , remainder);
 		copy_from_user(rxbuf->buf, buff + remainder, seq_len);
 		WRITE_ONCE(rxbuf->head, new_head);
-		data_available = true;
+		WRITE_ONCE(data_available, true);
 		wake_up_interruptible(&rxq);
 	}
 	else
