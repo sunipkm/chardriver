@@ -11,3 +11,5 @@
 5. To create `/dev/` node: Check `dmesg` after loading the kernel module and follow the commands specified.
 6. To monitor kernel module messages, run `dmesg -w`.
 7. To test, run `readbuf.out` to read, and do `echo -n Hello world > /dev/charDev`.
+
+Reference for circular buffer: https://danberliner.com/2020/08/24/struct-circ_buf-circular-buffers-in-the-linux-kernel/
