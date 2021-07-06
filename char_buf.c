@@ -23,7 +23,7 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 
 /*new code*/
 struct circ_buf *rxbuf;
-#define RXBUF_LEN 128
+#define RXBUF_LEN 16
 volatile bool data_available;
 static DECLARE_WAIT_QUEUE_HEAD(rxq);
 struct cdev *mcdev; /* this is the name of my char driver that i will be registering*/
@@ -100,8 +100,21 @@ static ssize_t device_write(struct file *fp, const char *buff, size_t len, loff_
 	}
 	else
 	{
-		printk(KERN_ERR "charDev : Buffer full\n");
-		return -ENOBUFS;
+		int remainder, seq_len;
+		head = 0;
+		tail = 0;
+		WRITE_ONCE(rxbuf->tail, tail);
+		WRITE_ONCE(rxbuf->head, head);
+		remainder = len % (CIRC_SPACE_TO_END(head, tail, RXBUF_LEN) + 1);
+		seq_len = len - remainder;
+		new_head = (head + len) & (RXBUF_LEN - 1);
+		printk("charDev : Flush : Rem %d Seq %d new head: %d\n", remainder, seq_len, new_head);
+		/* Write the block making sure to wrap around the end of the buffer */
+		copy_from_user(rxbuf->buf + head, buff , remainder);
+		copy_from_user(rxbuf->buf, buff + remainder, seq_len);
+		WRITE_ONCE(rxbuf->head, new_head);
+		WRITE_ONCE(data_available, true);
+		wake_up_interruptible(&rxq);
 	}
 	return len;
 }
